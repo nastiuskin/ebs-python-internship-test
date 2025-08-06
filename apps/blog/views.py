@@ -1,54 +1,35 @@
 from rest_framework import viewsets
-from rest_framework.generics import GenericAPIView, get_object_or_404
+from rest_framework.generics import GenericAPIView, ListCreateAPIView, CreateAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
-from rest_framework.request import Request
-from rest_framework.response import Response
-
 from apps.blog.models import Blog, Category, Comment
 from apps.blog.serializers import BlogSerializer, CategorySerializer, CommentSerializer
 from apps.common.permissions import ReadOnly
-
+from rest_framework import mixins
 
 class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
     queryset = Category.objects.all()
 
 
-class BlogListView(GenericAPIView):
+class BlogListView(ListCreateAPIView):
     serializer_class = BlogSerializer
     permission_classes = (IsAuthenticatedOrReadOnly,)
-
-    def get(self, request: Request) -> Response:
-        blogs = Blog.objects.all()
-        return Response(self.get_serializer(blogs, many=True).data)
-
-    def post(self, request: Request) -> Response:
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-
-        blog = Blog.objects.create(**validated_data)
-        return Response(BlogSerializer(blog).data)
+    queryset = Blog.objects.all()
 
 
-class BlogItemView(GenericAPIView):
+class BlogItemView(RetrieveAPIView):
     serializer_class = BlogSerializer
-    permission_classes = (ReadOnly, IsAuthenticated)
-
-    def get(self, request: Request, pk: int) -> Response:
-        blog: Blog = get_object_or_404(Blog.objects.all(), pk=pk)
-        return Response(self.get_serializer(blog).data)
+    permission_classes = (AllowAny,)
+    queryset = Blog.objects.all()
 
 
-class BlogCommentView(GenericAPIView):
+class BlogCommentView(CreateAPIView):
     serializer_class = CommentSerializer
     permission_classes = (AllowAny,)
+    queryset = Comment.objects.all()
 
-    def post(self, request: Request, pk:int) -> Response:
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
+    def perform_create(self, serializer):
+        blog_id = self.kwargs['pk']
+        serializer.save(blog_id=blog_id)
 
-        comment = Comment.objects.create(blog_id=pk, **validated_data)
-        return Response(CommentSerializer(comment).data)
 
