@@ -1,32 +1,35 @@
 from rest_framework import viewsets
-from rest_framework.generics import GenericAPIView, get_object_or_404
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.request import Request
-from rest_framework.response import Response
-
-from apps.blog.models import Blog, Category
-from apps.blog.serializers import BlogSerializer, CategorySerializer
+from rest_framework.generics import GenericAPIView, ListCreateAPIView, CreateAPIView, RetrieveAPIView
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
+from apps.blog.models import Blog, Category, Comment
+from apps.blog.serializers import BlogSerializer, CategorySerializer, CommentSerializer
 from apps.common.permissions import ReadOnly
-
+from rest_framework import mixins
 
 class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
     queryset = Category.objects.all()
 
 
-class BlogListView(GenericAPIView):
+class BlogListView(ListCreateAPIView):
     serializer_class = BlogSerializer
-    permission_classes = (ReadOnly,)
-
-    def get(self, request: Request) -> Response:
-        blogs = Blog.objects.all()
-        return Response(self.get_serializer(blogs, many=True).data)
+    permission_classes = (IsAuthenticatedOrReadOnly,)
+    queryset = Blog.objects.all()
 
 
-class BlogItemView(GenericAPIView):
+class BlogItemView(RetrieveAPIView):
     serializer_class = BlogSerializer
-    permission_classes = (ReadOnly, IsAuthenticated)
+    permission_classes = (AllowAny,)
+    queryset = Blog.objects.all()
 
-    def get(self, request: Request, pk: int) -> Response:
-        blog: Blog = get_object_or_404(Blog.objects.all(), pk=pk)
-        return Response(self.get_serializer(blog).data)
+
+class BlogCommentView(CreateAPIView):
+    serializer_class = CommentSerializer
+    permission_classes = (AllowAny,)
+    queryset = Comment.objects.all()
+
+    def perform_create(self, serializer):
+        blog_id = self.kwargs['pk']
+        serializer.save(blog_id=blog_id)
+
+
